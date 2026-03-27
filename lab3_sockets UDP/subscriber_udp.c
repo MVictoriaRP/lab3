@@ -1,0 +1,58 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+#define PORT 9090
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sock;
+    struct sockaddr_in broker_addr, from_addr;
+    char buffer[BUFFER_SIZE];
+    socklen_t addr_len = sizeof(from_addr);
+    
+    // Crear socket UDP
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("Error creando socket");
+        return -1;
+    }
+    
+    // Configurar dirección del broker
+    memset(&broker_addr, 0, sizeof(broker_addr));
+    broker_addr.sin_family = AF_INET;
+    broker_addr.sin_port = htons(PORT);
+    inet_pton(AF_INET, "127.0.0.1", &broker_addr.sin_addr);
+    
+    // Identificarse como SUBSCRIBER
+    strcpy(buffer, "SUBSCRIBER");
+    sendto(sock, buffer, strlen(buffer), 0,
+           (struct sockaddr *)&broker_addr, sizeof(broker_addr));
+    
+    printf("Registrado como SUBSCRIBER\n");
+    printf("Esperando mensajes (pueden perderse o llegar desordenados)...\n\n");
+    
+    int mensajes_recibidos = 0;
+    
+    // Recibir mensajes continuamente
+    while (1) {
+        memset(buffer, 0, BUFFER_SIZE);
+        
+        int n = recvfrom(sock, buffer, BUFFER_SIZE - 1, 0,
+                         (struct sockaddr *)&from_addr, &addr_len);
+        
+        if (n < 0) {
+            perror("Error en recvfrom");
+            break;
+        }
+        
+        buffer[n] = '\0';
+        mensajes_recibidos++;
+        
+        printf("Recibido: %s\n", buffer);
+    }
+    
+    close(sock);
+    return 0;
+}
