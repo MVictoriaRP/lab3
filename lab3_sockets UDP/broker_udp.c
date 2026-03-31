@@ -1,3 +1,16 @@
+/*
+ * BROKER UDP - Recibe y reenvía mensajes entre publishers y subscribers
+ * 
+ * Funciones socket usadas:
+ * 
+ * 1. socket() - Crea el socket UDP
+ * 3. sendto() - Envía mensajes al broker
+ * 4. close() - Cierra el socket
+ * 5. bind() - Asocia el socket a una dirección y puerto
+ * 6. recvfrom() - Recibe mensajes de publishers y subscribers
+ * 7. htons() - Convierte el número de puerto a formato de red
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,3 +1,15 @@
+/*
+ * SUBSCRIBER UDP - Recibe mensajes de un broker sobre uno o más temas
+ * 
+ * Funciones socket usadas:
+ * 
+ * 1. socket() - Crea el socket UDP
+ * 2. inet_pton() - Convierte IP en formato texto a binario
+ * 3. sendto() - Envía mensajes al broker
+ * 4. close() - Cierra el socket
+ * 6. recvfrom() - Recibe mensajes de publishers y subscribers
+ * 7. htons() - Convierte el número de puerto a formato de red
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

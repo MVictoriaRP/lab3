@@ -1,3 +1,14 @@
+/*
+ * PUBLISHER UDP - Envía mensajes a un broker sobre un tema
+ * 
+ * Funciones socket usadas:
+ * 1. socket() - Crea el socket UDP
+ * 2. inet_pton() - Convierte IP en formato texto a binario
+ * 3. sendto() - Envía mensajes al broker
+ * 4. close() - Cierra el socket
+ * 7. htons() - Convierte el número de puerto a formato de red
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
