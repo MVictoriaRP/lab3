@@ -7,11 +7,14 @@
 #define PORT 9090
 #define MAX_CLIENTS 20
 #define BUFFER_SIZE 1024
+#define MAX_TOPICS 5
+#define TOPIC_LEN 32
 
 typedef struct {
     struct sockaddr_in addr;
     int is_publisher;
     int active;
+    char topic[TOPIC_LEN]; // tema al que publica o está suscrito
 } Client;
 
 int main() {
@@ -21,19 +24,16 @@ int main() {
     char buffer[BUFFER_SIZE];
     Client clients[MAX_CLIENTS] = {0};
 
-    // Crear socket UDP
     if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("Error creando socket");
         exit(EXIT_FAILURE);
     }
 
-    // Configurar dirección
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    // Bind
     if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Error en bind");
         exit(EXIT_FAILURE);
@@ -44,7 +44,6 @@ int main() {
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
 
-        // Recibir cualquier datagrama
         int n = recvfrom(sock, buffer, BUFFER_SIZE - 1, 0,
                          (struct sockaddr *)&client_addr, &addr_len);
         if (n < 0) {
@@ -60,7 +59,7 @@ int main() {
                 clients[i].addr.sin_addr.s_addr == client_addr.sin_addr.s_addr &&
                 clients[i].addr.sin_port == client_addr.sin_port) {
                 found = i;
-                break;7
+                break;
             }
         }
 
@@ -70,6 +69,7 @@ int main() {
                     clients[i].addr = client_addr;
                     clients[i].active = 1;
                     clients[i].is_publisher = 0;
+                    memset(clients[i].topic, 0, TOPIC_LEN);
                     found = i;
                     break;
                 }
@@ -78,30 +78,46 @@ int main() {
 
         if (found == -1) continue;
 
-        // Registrar tipo de cliente
-        if (strncmp(buffer, "PUBLISHER", 9) == 0) {
+        // Formato de registro:
+        // "PUBLISHER:partido1"
+        // "SUBSCRIBER:partido1,partido2"  <- puede suscribirse a varios
+        // Mensajes normales: "partido1:texto del mensaje"
+
+        if (strncmp(buffer, "PUBLISHER:", 10) == 0) {
             clients[found].is_publisher = 1;
-            printf(" Publisher registrado\n");
-        } 
-        else if (strncmp(buffer, "SUBSCRIBER", 10) == 0) {
+            strncpy(clients[found].topic, buffer + 10, TOPIC_LEN - 1);
+            printf("Publisher registrado en tema [%s]\n", clients[found].topic);
+
+        } else if (strncmp(buffer, "SUBSCRIBER:", 11) == 0) {
             clients[found].is_publisher = 0;
-            printf(" Subscriber registrado\n");
-        } 
-        else {
-            // Es un mensaje de un publisher 
+            strncpy(clients[found].topic, buffer + 11, TOPIC_LEN - 1);
+            printf("Subscriber registrado en temas [%s]\n", clients[found].topic);
+
+        } else {
+            // Mensaje con formato "tema:contenido"
+            char *sep = strchr(buffer, ':');
+            if (sep == NULL) continue;
+
+            char msg_topic[TOPIC_LEN] = {0};
+            strncpy(msg_topic, buffer, sep - buffer);
+            char *msg_content = sep + 1;
+
             if (clients[found].is_publisher) {
-                
-                // Enviar a cada suscriptor 
+                int count = 0;
                 for (int j = 0; j < MAX_CLIENTS; j++) {
                     if (clients[j].active && !clients[j].is_publisher) {
-                        // Simplemente envía y continúa
-                        sendto(sock, buffer, strlen(buffer), 0,
-                               (struct sockaddr *)&clients[j].addr,
-                               sizeof(clients[j].addr));
+                        // Verificar si el subscriber está suscrito a este tema
+                        // El campo topic puede tener "partido1,partido2"
+                        if (strstr(clients[j].topic, msg_topic) != NULL) {
+                            sendto(sock, msg_content, strlen(msg_content), 0,
+                                   (struct sockaddr *)&clients[j].addr,
+                                   sizeof(clients[j].addr));
+                            count++;
+                        }
                     }
                 }
-                printf(" Mensaje reenviado a %d suscriptor(es)\n", 
-                       (int)(clients[found].is_publisher ? 0 : 1));
+                printf("Mensaje [%s] reenviado a %d suscriptor(es): %s\n",
+                       msg_topic, count, msg_content);
             }
         }
     }
